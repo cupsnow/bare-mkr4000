@@ -5,7 +5,7 @@ EMPTY:=#
 SPACE:=$(empty) $(empty)
 
 PWD:=$(abspath .)
-PROJDIR?=$(abspath $(PWD)/projdir)
+PROJDIR?=$(abspath $(dir $(firstword $(wildcard $(addsuffix /proj.mk,projdir .)))))
 BUILDDIR?=$(PWD)/build
 DESTDIR?=$(PWD)/destdir
 
@@ -112,6 +112,56 @@ $$(sort $$($(1)_OBJ_C) $$($(1)_OBJ_CPP) $$($(1)_OBJ_ASM)): $$(BUILDDIR)/%.o: %
 	  -E -o $$(call DEP,$$@) $$(call DEPFLAGS,$$@) $$< $$(BUILD1_CPPFLAGS) \
 	  $$(if $$(filter %.cpp,$$<),$$(BUILD1_CXXFLAGS),$$(BUILD1_CFLAGS))
 endef
+
+#------------------------------------
+# $(call BUILD2,<name>, <objgen>, <src>)
+#
+define BUILD2
+$1+=$3
+$(1)_OBJGEN+=$$(patsubst %,$$(BUILDDIR)/$(2)/%.o,$$(filter %.cpp %.c %.S,$$($1)))
+$(1)_INOBJ+=$$(filter %.a %.o,$$($1))
+$(1)_LDSCRIPT+=$$(filter %.ld,$$($1))
+$(1)_LDFLAGS+=$$($(1)_LDSCRIPT:%=-T %)
+$(2)_OBJGEN+=$$($(1)_OBJGEN)
+
+$$($(1)_APP) $$($(1)_LIB): BUILD2_CPPFLAGS+=$$($(1)_CPPFLAGS) 
+$$($(1)_APP) $$($(1)_LIB): BUILD2_CFLAGS+=$$($(1)_CFLAGS)
+$$($(1)_APP) $$($(1)_LIB): BUILD2_CXXFLAGS+=$$($(1)_CXXFLAGS)
+$$($(1)_APP) $$($(1)_LIB): BUILD2_CC?=$$(or $$($(1)_CC),$$(CC))
+$$($(1)_APP) $$($(1)_LIB): BUILD2_C++ ?=$$(or $$($(1)_C++),$$(C++))
+$$($(1)_APP): BUILD2_LDFLAGS+=$$($(1)_LDFLAGS)
+$$($(1)_LIB): BUILD2_ARFLAGS?=$$(or $$($(1)_ARFLAGS),rcs)
+$$($(1)_LIB): BUILD2_AR?=$$(or $$($(1)_AR),$$(AR))
+$1: $$($(1)_APP) $$($(1)_LIB)
+
+$$($(1)_APP): $$($(1)_OBJGEN) | $$($(1)_INOBJ)
+	$$(MKDIR) $$(dir $$@)
+	$$(or $$($(1)_LD),$$(if $$(filter %.cpp,$$($1)),$$(BUILD2_C++),$$(BUILD2_CC))) \
+	  -o $$@ -Wl,--start-group $$($(1)_OBJGEN) $$($(1)_INOBJ) -Wl,--end-group \
+	  $$(BUILD2_CPPFLAGS) $$(if $$(filter %.cpp,$$($1)),$$(BUILD2_CXXFLAGS),$$(BUILD2_CFLAGS)) \
+	  $$(BUILD2_LDFLAGS)
+
+$$($(1)_LIB): $$($(1)_OBJGEN)
+	$$(MKDIR) $$(dir $$@)
+	$$(BUILD2_AR) $$(BUILD2_ARFLAGS) $$@ $$($(1)_OBJGEN)
+
+$(1)_clean:
+	$$(RM) $$($(1)_OBJGEN) $$(addsuffix $$(DEP),$$($(1)_OBJGEN))
+
+-include $$(addsuffix $$(DEP),$$($(1)_OBJGEN))
+endef
+
+define BUILD2_OBJGEN
+$$(sort $$($(1)_OBJGEN)): $$(BUILDDIR)/$(1)/%.o: %
+	$$(MKDIR) $$(dir $$@)
+	$$(if $$(filter %.cpp,$$<),$$(BUILD2_C++),$$(BUILD2_CC)) \
+	  -c -o $$@ $$< $$(BUILD2_CPPFLAGS) \
+	  $$(if $$(filter %.cpp,$$<),$$(BUILD2_CXXFLAGS),$$(BUILD2_CFLAGS))
+	$$(if $$(filter %.cpp,$$<),$$(BUILD2_C++),$$(BUILD2_CC)) \
+	  -E -o $$(call DEP,$$@) $$(call DEPFLAGS,$$@) $$< $$(BUILD2_CPPFLAGS) \
+	  $$(if $$(filter %.cpp,$$<),$$(BUILD2_CXXFLAGS),$$(BUILD2_CFLAGS))
+endef
+
 #------------------------------------
 #------------------------------------
 #------------------------------------
