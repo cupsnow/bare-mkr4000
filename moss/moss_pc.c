@@ -12,7 +12,7 @@ const char *moss_newline = "\n";
 static char _log_buf[256];
 static moss_buf_t log_buf = {.data = _log_buf, .cap = sizeof(_log_buf)};
 
-extern int moss_log(unsigned lvl, const char *tag, long lno,
+int moss_log(unsigned lvl, const char *tag, long lno,
 		const char *fmt, ...) {
 	va_list va;
 	int r;

@@ -1,19 +1,16 @@
-/*
- * Copyright (c) 2019, Advanced Radar Technology Co., Ltd
- * All rights reserved.
- *
+/**
+ * @author joelai
  */
 
-/** @defgroup MOSS_MISC_API Host misc
- * @ingroup MIGRU_MISC_API
- * @brief Public miscellaneous API for host.
- *
- *   This module provide public miscellaneous API for application. More detail
- * grouped in subpage.
- */
+#ifndef _H_MOSS
+#define _H_MOSS
 
-#ifndef _H_MIGRU_TEST_GTRACK_MOSS
-#define _H_MIGRU_TEST_GTRACK_MOSS
+/** @defgroup MOSS Moss
+ * @brief Information for moss project.
+ *
+ *   Moss project provide runtime utility for multiple platform.  Target
+ * platform is linux, mmwave(mss, dss).
+ */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -27,14 +24,22 @@
 #include <sys/tree.h>
 #include <sys/queue.h>
 
-/** @addtogroup MOSS_MISC_API
+/** @defgroup MOSS_MISC Miscellaneous(misc)
+ * @ingroup MOSS
+ * @brief Miscellaneous API.
+ *
+ *   Misc module provide miscellaneous function.  More detail grouped in
+ * subpage.
+ */
+
+/** @addtogroup MOSS_MISC
  * @{
  */
 
-/** Minimal */
+/** Minimal. */
 #define MOSS_MIN(_a, _b) ((_a) <= (_b) ? (_a) : (_b))
 
-/** Stringify */
+/** Stringify. */
 #define MOSS_STRINGIFY(_s) # _s
 
 /** Stringify expansion. */
@@ -50,15 +55,16 @@
 #define MOSS_CONTAINER_OF(_obj, _type, _member) \
 	((_type *)((_obj) ? ((char*)(_obj) - offsetof(_type, _member)) : NULL))
 
-/** Count array. */
+/** Count array item. */
 #define MOSS_ARRAYSIZE(_a) (sizeof(_a) / sizeof((_a)[0]))
 
+/** Assert in build time. */
 #define MOSS_ASSERT_BUILD(_cond) ((void)sizeof(char[1 - 2 * !(_cond)]))
 
-/** moss flag mask.
+/** Define bit mask against enumeration.
  *
- *   Define group of flag mask in the enumeration.  The group of flag occupied
- * \<ITEM\>_mask_offset (count from bit0), and take \<ITEM\>_mask_bits.
+ *   Define group of bit masked flag in the enumeration.  The group of flag
+ * occupied \<ITEM\>_mask_offset (count from bit0), and take \<ITEM\>_mask_bits.
  * \<ITEM\>_mask used to filter the occupied value.
  *
  * Example:
@@ -78,52 +84,75 @@
  * flag_t flags_result = flags & flag_result_mask; // 0x8
  * @endcode
  */
-#define MOSS_FLAG_MASK(_name, _offset, _bits) \
-		_name ## _mask_offset = _offset, \
-		_name ## _mask_bits = _bits, \
-		_name ## _mask = (((1 << (_bits)) - 1) << (_offset))
+#define MOSS_FLAG_MASK(_group, _offset, _bits) \
+		_group ## _mask_offset = _offset, \
+		_group ## _mask_bits = _bits, \
+		_group ## _mask = (((1 << (_bits)) - 1) << (_offset))
 
-/** moss flag
+/** Define bit masked value against enumeration.
  *
  * Reference to MOSS_FLAG_MASK()
  */
-#define MOSS_FLAG(_base, _name, _val) \
-	_base ## _name = ((_val) << _base ## _mask_offset)
+#define MOSS_FLAG(_group, _name, _val) \
+	_group ## _name = ((_val) << _group ## _mask_offset)
 
-/**
- * @} MOSS_MISC_API
+/** @} MOSS_MISC */
+
+/** @addtogroup MOSS_MISC
+ * @{
  */
-
+/** Carry return(cr) character(\\r, 0xd). */
 #define MOSS_CR '\r'
+
+/** Line feed(lf) character(\\n, 0xa). */
 #define MOSS_LF '\n'
+/** @} MOSS_MISC */
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+/** @addtogroup MOSS_MISC
+* @{
+*/
+/** String for new line. */
 extern const char *moss_newline;
-#define moss_endl moss_newline
 
+typedef unsigned long (*moss_memcpy_t)(void *, const void *, size_t);
+
+/** Entry to red-black tree. */
 typedef struct moss_rb_entry_rec {
 	RB_ENTRY(moss_rb_entry_rec) entry;
 	int (*cmp)(struct moss_rb_entry_rec *a, struct moss_rb_entry_rec *b);
 } moss_rb_entry_t;
+
+/** Head to red-black tree. */
 typedef RB_HEAD(moss_rb_tree_rec, moss_rb_entry_rec) moss_rb_tree_t;
+
 RB_PROTOTYPE(moss_rb_tree_rec, moss_rb_entry_rec, entry, );
 
+/** Entry to tail queue.
+ *
+ * @param entry
+ */
 typedef struct moss_tailq_entry_rec {
 	TAILQ_ENTRY(moss_tailq_entry_rec) entry;
 } moss_tailq_entry_t;
+
+/** Head to tail queue. */
 typedef TAILQ_HEAD(moss_tailq_rec, moss_tailq_entry_rec) moss_tailq_t;
 
+/** Strip characters from start of string. */
 size_t moss_stripl(const void **buf, size_t sz, const char *ext);
 
-/** @defgroup MOSS_BUF_API moss buffer.
- * @ingroup MOSS_MISC_API
+/** @} MOSS_MISC */
+
+/** @defgroup MOSS_BUF moss_buf.
+ * @ingroup MOSS
  * @brief moss buffer provide viewport for memory.
  */
 
-/** @addtogroup MOSS_BUF_API
+/** @addtogroup MOSS_BUF
  * @{
  */
 /** moss buffer data structure. */
@@ -132,7 +161,10 @@ typedef struct moss_buf_rec {
 			cap, /**< Total capable of the data memory. */
 			lmt; /**< Valid data range. */
 	void *data; /**< Pointer to data memory. */
+	moss_memcpy_t memcpy;
 } moss_buf_t;
+
+int moss_buf_write(moss_buf_t *buf, const void *data, size_t sz);
 
 /** Read from moss buffer to mempry.
  *
@@ -181,7 +213,7 @@ int moss_buf_printf(moss_buf_t *buf, const char *fmt, ...)
 		__attribute__((format(printf, 2, 3)));
 
 /**
- * @} MOSS_BUF_API
+ * @} MOSS_BUF
  */
 
 typedef enum moss_log_level_enum {
@@ -243,8 +275,8 @@ void moss_matrix_mul(int am, int an, float *a, int bn, float *b, float *c);
 
 extern unsigned long moss_ts1_get(unsigned long *ts0);
 
-/** @defgroup MOSS_TEST_API test case.
- * @ingroup MOSS_MISC_API
+/** @defgroup MOSS_TEST Unit test.
+ * @ingroup MOSS
  * @brief Public method to write test case.
  *
  * - Test groups to tree.
@@ -279,7 +311,7 @@ extern unsigned long moss_ts1_get(unsigned long *ts0);
  *  @enddot
  */
 
-/** @addtogroup MOSS_TEST_API
+/** @addtogroup MOSS_TEST
  * @{
  */
 
@@ -413,21 +445,47 @@ typedef struct moss_test_report_rec {
 
 int moss_test_report(moss_test_t*, moss_test_report_t*);
 
-/**
- * @} MOSS_TEST_API
- */
+/** @} MOSS_TEST */
 
 #define _moss_int2hexstr(_d, _a) ((_d) < 10 ? (_d) + '0' : (_d) - 10 + (_a))
 void moss_int2hexstr(void *_buf, unsigned val, int width, int cap);
 
-/** @defgroup MOSS_TEST_API test case.
- * @ingroup MOSS_MISC_API
- * @brief Public method to write test case.
+/** @defgroup MOSS_HEX Hex dump format.
+ * @ingroup MOSS
+ * @brief Hex dump format.
  */
 
-/** @addtogroup MOSS_TEST_API
+/** @addtogroup MOSS_HEX
  * @{
  */
+
+/** Hex dump to buffer.
+ *
+ * @param _buf
+ * @param buf_sz
+ * @param data
+ * @param data_sz
+ * @param sep
+ * @return
+ */
+size_t moss_hd(void *_buf, size_t buf_sz, const uint8_t *data, size_t data_sz,
+		const char *sep);
+
+/** Hex dump to buffer.
+ *
+ * Native byte order.
+ *
+ * @param _buf
+ * @param buf_sz
+ * @param data
+ * @param data_cnt
+ * @param width
+ * @param sep
+ * @return
+ */
+size_t moss_hd2(void *_buf, size_t buf_sz, const void *data, size_t data_cnt,
+		char width, const char *sep);
+
 #define MOSS_SHOWHEX_BUF_MIN 78
 typedef long (*moss_showhex_sout_t)(void*, const void*, unsigned long);
 /** Hex dump to buffer.
@@ -450,11 +508,13 @@ typedef long (*moss_showhex_sout_t)(void*, const void*, unsigned long);
  */
 int moss_showhex(void *_buf, const void *_data, size_t sz, unsigned long _addr,
 		moss_showhex_sout_t sout, void *arg);
+
+/** Append text to buffer. */
 long moss_showhex_sout(moss_buf_t *buf, const void *msg, unsigned long len);
 
-typedef volatile uint32_t* iop32_t;
-typedef volatile uint16_t* iop16_t;
-typedef volatile uint8_t* iop8_t;
+/** @} MOSS_HEX */
+
+int moss_cli_tok(char *cli, int *tok_argc, char **tok_argv, const char *sep);
 
 /**
  * get mask of the bit[3..4]: MOSS_BITMASK(3, 2) -> 0x18
@@ -468,8 +528,23 @@ typedef volatile uint8_t* iop8_t;
 	(((_word) & ~MOSS_BITMASK(_shift, _bits)) | \
 	(((_field) & MOSS_BITMASK(0, _bits)) << (_shift)))
 
+/** Parse cli to \"<addr7> [w [bytes...]] [r [size]]\".
+ *
+ * "<addr7> [w [bytes...]] [r [size]]"
+ *
+ * @param argc
+ * @param argv
+ * @param addr7
+ * @param wbuf
+ * @param wlen
+ * @param rlen
+ * @return
+ */
+int moss_parse_i2c_cli(int32_t argc, const char **argv, unsigned *addr7,
+		uint8_t *wbuf, unsigned *wlen, unsigned *rlen);
+
 #ifdef __cplusplus
 } // extern "C"
 #endif
 
-#endif /* _H_MIGRU_TEST_GTRACK_MOSS */
+#endif /* _H_MOSS */

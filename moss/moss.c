@@ -1,5 +1,12 @@
 #include <moss/moss.h>
 
+static unsigned long alt_memcpy(moss_memcpy_t func, void *tgt, const void *src,
+		size_t sz) {
+	if (func) return func(tgt, src, sz);
+	memcpy(tgt, src, sz);
+	return 0;
+}
+
 static int moss_rb_cmp(moss_rb_entry_t *a, moss_rb_entry_t *b)
 {
 	if (a->cmp) return (a->cmp)(a, b);
@@ -19,13 +26,28 @@ size_t moss_stripl(const void **buf, size_t sz, const char *ext) {
 	return sz;
 }
 
+int moss_buf_write(moss_buf_t *buf, const void *data, size_t sz) {
+	int sz_max = MOSS_MIN(sz, (buf->cap - buf->lmt));
+	if (!data || sz_max <= 0) return 0;
+	char *data_pos = (char*)buf->data + buf->pos + buf->lmt;
+	if (data_pos >= (char*)buf->data + buf->cap) data_pos -= buf->cap;
+	int data_sz = MOSS_MIN(sz_max, (char*)buf->data + buf->cap - data_pos);
+	alt_memcpy(buf->memcpy, data_pos, data, data_sz);
+	if (sz_max > data_sz) {
+		alt_memcpy(buf->memcpy, buf->data, (char*)data + data_sz,
+				sz_max - data_sz);
+	}
+	buf->lmt += sz_max;
+	return sz - sz_max;
+}
+
 int moss_buf_read(moss_buf_t *buf, void *data, size_t sz) {
 	size_t _sz = sz = MOSS_MIN(sz, buf->lmt);
 	while (sz > 0) {
 		char *data_pos = (char*)buf->data + buf->pos;
 		int data_sz = buf->cap - buf->pos;
 		if (data_sz > sz) data_sz = sz;
-		memcpy(data, data_pos, data_sz);
+		alt_memcpy(buf->memcpy, data, data_pos, data_sz);
 		if ((buf->pos += data_sz) >= buf->cap)
 			buf->pos -= buf->cap;
 		buf->lmt -= data_sz;
@@ -372,6 +394,69 @@ void moss_int2hexstr(void *_buf, unsigned val, int width, int cap) {
 	}
 }
 
+size_t moss_hd(void *_buf, size_t buf_sz, const uint8_t *data, size_t data_sz,
+		const char *sep) {
+	int i = 0, sep_len;
+	uint8_t *buf = (uint8_t*)_buf;
+
+	// buf enough for [hex*2, \0]
+	if (data_sz <= 0 || buf_sz < 3) return 0;
+
+	if (!sep) sep = " ";
+	sep_len = strlen(sep);
+
+	moss_int2hexstr(buf, *data, 2, 'a');
+	buf += 2;
+	buf_sz -= 2;
+	data++;
+
+	for (i = 1; i < data_sz; i++, data++, buf += (sep_len + 2)) {
+		// buf enough for [sp, hex*2, \0]
+		if (buf_sz < (sep_len + 3)) break;
+		memcpy(buf, sep, sep_len);
+		moss_int2hexstr(buf + sep_len, *data, 2, 'a');
+	}
+	*buf = '\0';
+	return (i - 1) * sep_len + i * 2;
+}
+
+size_t moss_hd2(void *_buf, size_t buf_sz, const void *data, size_t data_cnt,
+		char width, const char *sep) {
+	int i, sep_len;
+	uint8_t *buf = (uint8_t*)_buf;
+#define uint(_p, _w) ((_w) == 4 ? *(uint32_t*)(_p) : \
+		(_w) == 2 ? *(uint16_t*)(_p) : *(uint8_t*)(_p))
+
+	for (i = (1 << 2); i > 0; i>>=1) {
+		if (width >= i) {
+			width = i;
+			break;
+		}
+	}
+	if (width <= 0) width = 1;
+
+	// buf enough for [hex*2 ..., \0]
+	if (data_cnt <= 0 || buf_sz < (width * 2 + 1)) return 0;
+
+	if (!sep) sep = " ";
+	sep_len = strlen(sep);
+
+	moss_int2hexstr(buf, uint(data, width), width * 2, 'a');
+	buf += width * 2;
+	buf_sz -= width * 2;
+	data = (uint8_t*)data + width;
+
+	for (i = 1; i < data_cnt; i++, data = (uint8_t*)data + width,
+			buf += (sep_len + width * 2)) {
+		// buf enough for [sp, hex*2 ..., \0]
+		if (buf_sz < (sep_len + width * 2 + 1)) break;
+		memcpy(buf, sep, sep_len);
+		moss_int2hexstr(buf + sep_len, uint(data, width), width * 2, 'a');
+	}
+	*buf = '\0';
+	return (i - 1) * sep_len + i * width * 2;
+}
+
 int moss_showhex(void *_buf, const void *_data, size_t sz, unsigned long _addr,
 		moss_showhex_sout_t sout, void *arg) {
 #if MOSS_SHOWHEX_BUF_MIN < 78
@@ -432,3 +517,101 @@ long moss_showhex_sout(moss_buf_t *buf, const void *msg, unsigned long len) {
 	if (buf->pos + 1 >= buf->cap) return -1;
 	return 0;
 }
+
+int moss_cli_tok(char *cli, int *tok_argc, char **tok_argv, const char *sep) {
+	int tok_argv_sz = *tok_argc;
+	char *tok_str[1];
+
+	if (!sep) sep = " \r\n\t";
+	for (*tok_argc = 0, tok_argv[*tok_argc] = strtok_r(cli, sep, &tok_str[0]);
+			tok_argv[*tok_argc] && (*tok_argc < tok_argv_sz);
+			(*tok_argc)++, tok_argv[*tok_argc] = strtok_r(NULL, sep, &tok_str[0]));
+	return 0;
+}
+
+int moss_parse_i2c_cli(int32_t argc, const char **argv, unsigned *addr7,
+		uint8_t *wbuf, unsigned *wlen, unsigned *rlen) {
+	enum {
+		flag_null,
+		flag_parse_addr7,
+		flag_parse_rw,
+		flag_parse_w,
+		flag_parse_ww,
+		flag_parse_r,
+		flag_parse_rr,
+		flag_done,
+	};
+	int parse = flag_null, parsed_argc = 1;
+	unsigned wbuf_sz = *wlen;
+
+	*wlen = *rlen = 0;
+	while (1) {
+		if ((parse == flag_null) || (parse == flag_parse_addr7)) {
+			parse = flag_parse_addr7;
+			if (argc < (parsed_argc + 1)) {
+				moss_error("parse addr7\n");
+				return -1;
+			}
+			*addr7 = (unsigned)strtol(argv[parsed_argc++], NULL, 0);
+			parse = flag_parse_rw;
+			continue;
+		}
+		if (parse == flag_parse_rw) {
+			if (argc < (parsed_argc + 1)) {
+				moss_error("parse rw\n");
+				return -1;
+			}
+			switch(*argv[parsed_argc++]) {
+			case 'w':
+			case 'W':
+				parse = flag_parse_w;
+				break;
+			case 'r':
+			case 'R':
+				parse = flag_parse_r;
+				break;
+			default:
+				moss_error("parse r/w\n");
+				return -1;
+			}
+			continue;
+		}
+		if ((parse == flag_parse_w) || (parse == flag_parse_ww)) {
+			parse = flag_parse_ww;
+			if (argc < (parsed_argc + 1)) {
+				parse = flag_done;
+				break;
+			}
+			if (!isdigit(*argv[parsed_argc])) {
+				parse = flag_parse_rw;
+				continue;
+			}
+			if (*wlen >= wbuf_sz) {
+				moss_error("data_w insufficient\n");
+				return -1;
+			}
+			wbuf[(*wlen)++] = (unsigned)strtol(argv[parsed_argc++], NULL, 0);
+			continue;
+		}
+		if ((parse == flag_parse_r) || (parse == flag_parse_rr)) {
+			parse = flag_parse_rr;
+			if (argc < (parsed_argc + 1)) {
+				parse = flag_done;
+				break;
+			}
+			if (!isdigit(*argv[parsed_argc])) {
+				parse = flag_parse_rw;
+				continue;
+			}
+			*rlen = (unsigned)strtol(argv[parsed_argc++], NULL, 0);
+			continue;
+		}
+		if (parse == flag_done) {
+			break;
+		}
+		moss_error("fsm\n");
+		return -1;
+	}
+	return 0;
+}
+
