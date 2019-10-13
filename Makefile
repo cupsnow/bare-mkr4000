@@ -1,34 +1,35 @@
 #------------------------------------
 #
 -include site.mk
-include $(PROJDIR:%=%/)proj.mk
+include $(PROJDIR:%=%/)builder/proj.mk
 
 ARDUINO_PLATFORM_PATH?=/home/joelai/.arduino15/packages/arduino
 mkr4000_ARDUINO_PATH?=$(ARDUINO_PLATFORM_PATH)/hardware/samd_beta/1.6.25
 
 CMSIS_PATH?=$(PROJDIR)/CMSIS_5
 
-BOSSAC=$(PROJDIR)/bossa/bin/bossac --offset=0x2000 --verify --info \
+BOSSA_PATH?=$(PROJDIR)/bossa
+BOSSAC?=$(BOSSA_PATH)/bin/bossac --offset=0x2000 --verify --info \
   --port=$(notdir $(wildcard /dev/ttyACM0 /dev/ttyACM1))
-ARMGCC=/home/joelai/07_sw/gcc-arm-none-eabi/bin/arm-none-eabi-gcc
 
-ARM_TOOLCHAIN_PATH=$(abspath $(dir $(ARMGCC))..)
-ARM_CROSS_COMPILE=$(patsubst %gcc,%,$(notdir $(ARMGCC)))
+ARM_TOOLCHAIN_PATH?=$(PROJDIR)/gcc-arm-none-eabi
+ARM_CROSS_COMPILE?=$(patsubst %gcc,%,$(notdir $(wildcard $(ARM_TOOLCHAIN_PATH)/bin/*gcc)))
 
 CROSS_COMPILE=$(ARM_CROSS_COMPILE)
-
 EXTRA_PATH+=$(ARM_TOOLCHAIN_PATH:%=%/bin)
 
 export PATH:=$(call ENVPATH,$(EXTRA_PATH))
 
-$(info Makefile ... PATH: $(PATH)) 
+$(info Makefile ... CROSS_COMPILE: $(CROSS_COMPILE), PATH: $(PATH)) 
 
 #------------------------------------
 #
+
+# newlib-nano, retarget
 mkr4000_CPPFLAGS+=-ffunction-sections -fdata-sections -mthumb -mcpu=cortex-m0plus \
-  -Os -flto -D__SAMD21G18A__
-mkr4000_CFLAGS+=-std=gnu99
-mkr4000_LDFLAGS+=-Wl,--cref,--gc-sections --specs=nano.specs
+  -Os -flto -D__SAMD21G18A__ -specs=nano.specs -specs=nosys.specs
+mkr4000_CFLAGS+=-std=gnu99 -fno-builtin
+mkr4000_LDFLAGS+=-Wl,--cref,--gc-sections
 
 #------------------------------------
 #
@@ -37,20 +38,22 @@ mkr4000_ARDUINO_CPPFLAGS+= \
   -I$(ARDUINO_PLATFORM_PATH)/tools/CMSIS-Atmel/1.2.0/CMSIS/Device/ATMEL \
   -DBOARD_ID_arduino_mkrvidor4000 -DSAM_BA_USBCDC_ONLY $(mkr4000_CPPFLAGS)
 
-mkr4000_ARDUINO_LDFLAGS+=$(mkr4000_LDFLAGS) --specs=nosys.specs
+mkr4000_ARDUINO_LDFLAGS+=$(mkr4000_LDFLAGS)
 
 #------------------------------------
 #
 test3_APP=$(patsubst $(PWD)/%,%,$(BUILDDIR)/mkr4000/test3)
-test3_CPPFLAGS+=-I$(PROJDIR)/moss/inc -I$(PROJDIR)/moss/openbsd \
-  -I$(PROJDIR)/cmsis-mkr4000/include -I$(CMSIS_PATH)/CMSIS/Core/Include \
-  $(mkr4000_CPPFLAGS) -g
+test3_CPPFLAGS+=-g \
+  -I$(PROJDIR) -I$(PROJDIR)/include \
+  $(addprefix -I$(PROJDIR)/moss/,include mkr/include openbsd) \
+  -I$(CMSIS_PATH)/CMSIS/Core/Include -I$(PROJDIR)/mkr4000/include \
+  $(mkr4000_CPPFLAGS)
 test3_CFLAGS+=$(mkr4000_CFLAGS)
-test3_LDFLAGS+=$(mkr4000_LDFLAGS) --specs=nosys.specs -Wl,-Map=$@.map
+test3_LDFLAGS+=$(mkr4000_LDFLAGS) -Wl,-Map=$@.map
 
 $(eval $(call BUILD2,test3,mkr4000,$(patsubst $(PWD)/%,%, \
-  $(wildcard $(PROJDIR)/moss/moss.c $(PROJDIR)/moss/moss_m0.c \
-    $(addprefix $(PROJDIR)/cmsis-mkr4000/,*.c *.ld) \
+  $(wildcard $(addprefix $(PROJDIR)/moss/,*.c *.cpp mkr/*.c mkr/*.cpp) \
+    $(addprefix $(PROJDIR)/mkr4000/,*.c *.cpp *.ld) \
     $(addprefix $(PROJDIR)/test/,test3.cpp)))))
 
 test3_prog:
@@ -67,7 +70,7 @@ test2_APP=$(patsubst $(PWD)/%,%,$(BUILDDIR)/mkr4000/test2)
 test2_CPPFLAGS+=$(mkr4000_ARDUINO_CPPFLAGS) \
   -I$(PROJDIR)/moss/inc -I$(PROJDIR)/moss/openbsd
 test2_CFLAGS+=$(mkr4000_CFLAGS)
-test2_LDFLAGS+=$(mkr4000_ARDUINO_LDFLAGS) -Wl,-Map=$@.map
+test2_LDFLAGS+=$(mkr4000_ARDUINO_LDFLAGS) -Wl,-Map=$@.map 
 
 $(eval $(call BUILD2,test2,mkr4000,$(patsubst $(PWD)/%,%, \
   $(PROJDIR)/moss/moss.c $(PROJDIR)/moss/moss_m0.c \
@@ -88,25 +91,25 @@ test1-mkr4000_APP=$(patsubst $(PWD)/%,%,$(BUILDDIR)/mkr4000/test1)
 test1-mkr4000_CPPFLAGS+=-I$(PROJDIR)/moss/inc -I$(PROJDIR)/moss/openbsd \
   $(mkr4000_CPPFLAGS) -g
 test1-mkr4000_CFLAGS+=$(mkr4000_CFLAGS)
-test1-mkr4000_LDFLAGS+=$(mkr4000_LDFLAGS) --specs=nosys.specs -Wl,-Map=$@.map
+test1-mkr4000_LDFLAGS+=$(mkr4000_LDFLAGS) -Wl,-Map=$@.map
 $(eval $(call BUILD2,test1-mkr4000,mkr4000,$(patsubst $(PWD)/%,%, \
   $(PROJDIR)/moss/moss.c $(PROJDIR)/moss/moss_m0.c \
   $(PROJDIR)/test/test1.cpp)))
 
 test1-host_APP=$(patsubst $(PWD)/%,%,$(BUILDDIR)/host/test1)
-test1-host_CPPFLAGS+=-ffunction-sections -fdata-sections \
-  -g -I$(PROJDIR)/moss/inc -I$(PROJDIR)/moss/openbsd
-test1-host test1-host%: CROSS_COMPILE= 
+test1-host_CPPFLAGS+=-ffunction-sections -fdata-sections -g \
+  -I$(PROJDIR) -I$(PROJDIR)/include \
+  $(addprefix -I$(PROJDIR)/moss/,include pc/include openbsd)
+test1-host test1-host%: CROSS_COMPILE=
 $(eval $(call BUILD2,test1-host,host,$(patsubst $(PWD)/%,%, \
-  $(PROJDIR)/moss/moss.c $(PROJDIR)/moss/moss_pc.c \
+  $(wildcard $(addprefix $(PROJDIR)/moss/,*.c *.cpp pc/*.c pc/*.cpp)) \
   $(PROJDIR)/test/test1.cpp)))
-
 
 #------------------------------------
 #
 bootloader_APP=$(patsubst $(PWD)/%,%,$(BUILDDIR)/mkr4000/bootloader)
 bootloader_CPPFLAGS+=$(mkr4000_ARDUINO_CPPFLAGS)
-bootloader_CFLAGS+=$(mkr4000_CFLAGS)
+bootloader_CFLAGS+=$(mkr4000_CFLAGS) -g
 bootloader_LDFLAGS+=$(mkr4000_ARDUINO_LDFLAGS) -Wl,-Map=$@.map
 
 $(eval $(call BUILD2,bootloader,mkr4000,$(patsubst $(PWD)/%,%, \
@@ -134,6 +137,11 @@ bossa%:
 	$(MAKE) -C $(PROJDIR)/bossa Q= $(patsubst _%,%,$(@:bossa%=%))
 
 .PHONY: bossa bossa%
+
+#------------------------------------
+#
+cmsis_download: ;
+	git clone https://github.com/ARM-software/CMSIS_5.git $(CMSIS_PATH)
 
 #------------------------------------
 #

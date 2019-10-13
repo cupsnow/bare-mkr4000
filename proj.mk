@@ -10,8 +10,7 @@ BUILDDIR?=$(PWD)/build
 DESTDIR?=$(PWD)/destdir
 
 $(info proj.mk ... MAKECMDGOALS: $(MAKECMDGOALS), PWD: $(PWD), \
-  PROJDIR: $(PROJDIR), PLATFORM: $(PLATFORM), \
-  CROSS_COMPILE: $(CROSS_COMPILE))
+  PROJDIR: $(PROJDIR), PLATFORM: $(PLATFORM))
 
 #------------------------------------
 #

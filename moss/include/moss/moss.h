@@ -5,11 +5,11 @@
 #ifndef _H_MOSS
 #define _H_MOSS
 
-/** @defgroup MOSS Moss
- * @brief Information for moss project.
+/** @defgroup MOSS
+ * Information for moss project.
  *
- *   Moss project provide runtime utility for multiple platform.  Target
- * platform is linux, mmwave(mss, dss).
+ * Moss project provide runtime utility for multiple platform.  Target platform
+ * is linux, mkr4000.
  */
 
 #include <stdio.h>
@@ -24,12 +24,12 @@
 #include <sys/tree.h>
 #include <sys/queue.h>
 
-/** @defgroup MOSS_MISC Miscellaneous(misc)
- * @ingroup MOSS
- * @brief Miscellaneous API.
+/** @defgroup MOSS_MISC Miscellaneous (misc)
+ * Miscellaneous API.
  *
- *   Misc module provide miscellaneous function.  More detail grouped in
- * subpage.
+ * @ingroup MOSS
+ *
+ * Misc module provide miscellaneous function.  More detail grouped in subpage.
  */
 
 /** @addtogroup MOSS_MISC
@@ -63,9 +63,9 @@
 
 /** Define bit mask against enumeration.
  *
- *   Define group of bit masked flag in the enumeration.  The group of flag
- * occupied \<ITEM\>_mask_offset (count from bit0), and take \<ITEM\>_mask_bits.
- * \<ITEM\>_mask used to filter the occupied value.
+ * Define group of bit masked flag in the enumeration.  The group of flag
+ * occupied \<_group\>_mask_offset (count from bit0), and take \<_group\>_mask_bits.
+ * \<_group\>_mask used to filter the occupied value.
  *
  * Example:
  * @code{.c}
@@ -96,11 +96,6 @@
 #define MOSS_FLAG(_group, _name, _val) \
 	_group ## _name = ((_val) << _group ## _mask_offset)
 
-/** @} MOSS_MISC */
-
-/** @addtogroup MOSS_MISC
- * @{
- */
 /** Carry return(cr) character(\\r, 0xd). */
 #define MOSS_CR '\r'
 
@@ -115,10 +110,11 @@ extern "C" {
 /** @addtogroup MOSS_MISC
 * @{
 */
+
 /** String for new line. */
 extern const char *moss_newline;
 
-typedef unsigned long (*moss_memcpy_t)(void *, const void *, size_t);
+typedef unsigned long (*moss_memcpy_t)(void*, const void*, size_t);
 
 /** Entry to red-black tree. */
 typedef struct moss_rb_entry_rec {
@@ -147,9 +143,10 @@ size_t moss_stripl(const void **buf, size_t sz, const char *ext);
 
 /** @} MOSS_MISC */
 
-/** @defgroup MOSS_BUF moss_buf.
+/** @defgroup MOSS_BUF
+ * Viewport for memory.
+ *
  * @ingroup MOSS
- * @brief moss buffer provide viewport for memory.
  */
 
 /** @addtogroup MOSS_BUF
@@ -212,27 +209,74 @@ int moss_buf_vprintf(moss_buf_t *buf, const char *fmt, va_list va)
 int moss_buf_printf(moss_buf_t *buf, const char *fmt, ...)
 		__attribute__((format(printf, 2, 3)));
 
-/**
- * @} MOSS_BUF
+/** @} MOSS_BUF */
+
+/** @defgroup MOSS_LOG
+ * Message catalog.
+ *
+ * @ingroup MOSS
+ *
+ * A message log contains
+ * - level: Severity of the message.
+ * - timestamp: Time when issue the message.
+ * - tag: Tagged name for the message (ie. method name).
+ * - line number: Location of the source to issue the message (ie. Source code line number).
+ * - message: The message.
  */
 
+/** @addtogroup MOSS_LOG
+ * @{
+ */
+
+/** Enum for log level. */
 typedef enum moss_log_level_enum {
-	MOSS_FLAG_MASK(moss_log_level, 0, 8),
-	MOSS_FLAG(moss_log_level, _error, 8),
-	MOSS_FLAG(moss_log_level, _info, 9),
-	MOSS_FLAG(moss_log_level, _debug, 10),
-	MOSS_FLAG(moss_log_level, _verbose, 11),
+	MOSS_FLAG_MASK(moss_log_level, 0, 8), /**< MOSS_FLAG_MASK(moss_log_level, ). */
+	MOSS_FLAG(moss_log_level, _error, 8), /**< Error level. */
+	MOSS_FLAG(moss_log_level, _info, 9), /**< Information level. */
+	MOSS_FLAG(moss_log_level, _debug, 10), /**< Debug level. */
+	MOSS_FLAG(moss_log_level, _verbose, 11), /**< Verbose level. */
 } moss_log_level_t;
 
+/** Provide timestamp string.
+ *
+ * @param buf Buffer to save string.
+ * @param flag Log level.
+ * @param tag Log tag.
+ * @param lno Line number.
+ * @return Bytes appended to the buffer.
+ */
 extern int moss_logt(moss_buf_t *buf, unsigned flag, const char *tag, long lno);
 
+/** Format the message log.
+ *
+ * @param buf
+ * @param flag
+ * @param tag
+ * @param lno
+ * @param fmt
+ * @param va
+ * @return
+ */
 int moss_vlogf(moss_buf_t *buf, unsigned flag, const char *tag, long lno,
 		const char *fmt, va_list va) __attribute__((format(printf, 5, 0)));
+
+/** Format the message log.
+ *
+ *
+ * @param buf
+ * @param flag
+ * @param tag
+ * @param lno
+ * @param fmt
+ * @return
+ */
 int moss_logf(moss_buf_t *buf, unsigned flag, const char *tag, long lno,
 		const char *fmt, ...) __attribute__((format(printf, 5, 6)));
 
+/** The max severity to output. */
 extern int moss_log_level_max;
 
+/** Convert log enum to string. */
 #define moss_level_str(_lvl, _na) \
 	((_lvl) == moss_log_level_error ? "ERROR" : \
 	(_lvl) == moss_log_level_info ? "INFO" : \
@@ -240,28 +284,44 @@ extern int moss_log_level_max;
 	(_lvl) == moss_log_level_verbose ? "verbose" : \
 	(_na))
 
+/** Output the message. */
 extern int moss_log(unsigned lvl, const char *tag, long lno,
 		const char *fmt, ...) __attribute__((format(printf, 4, 5)));
 
+/** Output the error severity message. */
 #define moss_error(...) moss_log(moss_log_level_error, __func__, __LINE__, __VA_ARGS__)
+
+/** Output the debug severity message. */
 #define moss_debug(...) moss_log(moss_log_level_debug, __func__, __LINE__, __VA_ARGS__)
+
+/** Output the information severity message. */
 #define moss_info(...) moss_log(moss_log_level_info, __func__, __LINE__, __VA_ARGS__)
+
+/** Output the verbose severity message. */
 #define moss_verbose(...) moss_log(moss_log_level_verbose, __func__, __LINE__, __VA_ARGS__)
 
-int moss_readline(int (*getc)(void *arg), void *arg, char *_nl);
-extern int moss_file_size(const char *path);
+/** @} MOSS_LOG */
 
-/*
- * m(2) x n(3), b[m][n], [b11, b12, b13, b21, b22, b23]
- *
- *             b11 *b12  b13
- *             b21 *b22  b23
- *
- *  a11  a12   c11  c12  c13
- * *a21 *a22   c21 *c22  c23  c22 = a21 * b12 + a22 * b22
- *  a31  a32   c31  c32  c33
- *  a41  a42   c41  c42  c43
+/** @addtogroup MOSS_MISC
+ * @{
  */
+
+/** Find a line.
+ *
+ * Accept end of line(EOL) for \<CR\>\<LF\> or \<LF\>.
+ *
+ * @param getc A function to get a character, return negative to end process.
+ * @param arg The argument pass to getc().
+ * @param _nl
+ *   - 0: Missing EOL.
+ *   - 1: EOL is \<LF\>.
+ *   - 2: EOL is \<CR\>\<LF\>
+ * @return
+ */
+int moss_readline(int (*getc)(void *arg), void *arg, char *_nl);
+
+/** Get file size. */
+extern int moss_file_size(const char *path);
 
 #ifdef __GNUC__
 /* 4 float vector type */
@@ -270,43 +330,59 @@ typedef float v4sf_t __attribute__((vector_size(sizeof(float) * 4)));
 void moss_matrix_mul_v4sf(int am, int an, float *a, int bn, float *b, float *c);
 #endif
 
+/** Matrix multiply.
+ *
+ * The matrix e.g. b[2][3] contains **m** (2 rows) \* **n** (3 columns), memory
+ * organized in [b11, b12, b13, b21, b22, b23].
+ *
+ * Multiplication illustrate.
+ *
+ *                 b11 *b12  b13
+ *                 b21 *b22  b23
+ *               +--------------
+ *      a11  a12 | c11  c12  c13
+ *     *a21 *a22 | c21 *c22  c23  c22 = a21 * b12 + a22 * b22
+ *      a31  a32 | c31  c32  c33
+ *      a41  a42 | c41  c42  c43
+ *
+ * @param am The **m** (row) of the matrix **a**
+ * @param an The **n** (column) of the matrix **a**
+ * @param a The matrix **a**
+ * @param bn The **n** (column) of the matrix **b**
+ * @param b The matrix **b**
+ * @param c The matrix **c** (output)
+ */
 void moss_matrix_mul_sw(int am, int an, float *a, int bn, float *b, float *c);
 void moss_matrix_mul(int am, int an, float *a, int bn, float *b, float *c);
 
+/** Get timestamp in type unsigned long. */
 extern unsigned long moss_ts1_get(unsigned long *ts0);
 
-/** @defgroup MOSS_TEST Unit test.
- * @ingroup MOSS
- * @brief Public method to write test case.
+/** @} MOSS_MISC */
+
+/** @defgroup MOSS_TEST Unit test
+ * API to write test case.
  *
- * - Test groups to tree.
+ * @ingroup MOSS
+ *
+ * - Test suite groups to tree.
  * - Test suite could contain test suites and cases.
  * - The tree runs deep first.
  * - Test case failure may break the containing suite.
  *
- *  @dot "Run test"
+ *  @dot "Test suite works"
  *  digraph G {
  *    subgraph test_suite {
  *      setup;
  *      loop_content[label="loop content"];
+ *      failed_suite;
  *      shutdown;
  *
  *      setup -> loop_content;
- *      setup -> failed_suite;
  *      loop_content -> shutdown;
+ *      loop_content -> failed_suite;
+ *      failed_suite -> shutdown;
  *    };
- *
- *    subgraph test_case {
- *      test_runner;
- *    };
- *
- *    subgraph loop_content {
- *
- *    	runner -> test_suite;
- *    	runner -> test_case;
- *
- *    };
- *
  *  }
  *  @enddot
  */
@@ -435,6 +511,7 @@ typedef struct moss_test_rec {
  *
  * @param
  * @return
+ *
  */
 moss_test_flag_t moss_test_runner(moss_test_case_t*);
 
@@ -447,9 +524,6 @@ int moss_test_report(moss_test_t*, moss_test_report_t*);
 
 /** @} MOSS_TEST */
 
-#define _moss_int2hexstr(_d, _a) ((_d) < 10 ? (_d) + '0' : (_d) - 10 + (_a))
-void moss_int2hexstr(void *_buf, unsigned val, int width, int cap);
-
 /** @defgroup MOSS_HEX Hex dump format.
  * @ingroup MOSS
  * @brief Hex dump format.
@@ -458,6 +532,22 @@ void moss_int2hexstr(void *_buf, unsigned val, int width, int cap);
 /** @addtogroup MOSS_HEX
  * @{
  */
+
+/** Convert a decimal number to hex ASCII.
+ *
+ * @param _d A decimal number.
+ * @param _a The character above decimal 9.
+ */
+#define _moss_int2hexstr(_d, _a) ((_d) < 10 ? (_d) + '0' : (_d) - 10 + (_a))
+
+/** Convert integer to hex ASCII.
+ *
+ * @param _buf
+ * @param val
+ * @param width
+ * @param cap
+ */
+void moss_int2hexstr(void *_buf, unsigned val, int width, int cap);
 
 /** Hex dump to buffer.
  *

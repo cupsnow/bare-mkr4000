@@ -17,6 +17,8 @@
 
 ----
 ## Note
-*  $(PROJDIR)/moss -- Generic functions.
-*  $(PROJDIR)/cmsis-mkr4000 -- Functions depends on CMSIS.
-*  $(PROJDIR)/test/openocd* -- OpenOCD script on RPI, useful to write bootloader.
+*  `$(PROJDIR)/moss` -- Generic functions.
+   *  `mkr, mmw, pc` -- Target specified functions.
+   *  `include/moss/hal` -- Interface for target.
+*  `$(PROJDIR)/cmsis-mkr4000` -- Functions depends on CMSIS.
+*  `$(PROJDIR)/test/openocd*` -- OpenOCD script on RPI, useful to write bootloader.
