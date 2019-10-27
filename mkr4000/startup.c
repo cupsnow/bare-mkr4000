@@ -122,5 +122,5 @@ void Default_SystemInit(void) {
  *----------------------------------------------------------------------------*/
 void Default_Handler(void)
 {
-  while(1);
+//  while(1);
 }

@@ -7,10 +7,11 @@
 #include <moss/moss.h>
 
 static moss_test_flag_t test_case_bitmask(moss_test_case_t *test_case) {
-	MOSS_TEST_ASSERT_RETURN(MOSS_BITMASK(3, 2) == 0x18,
+
+	// 0x5a: 01011010, set [3..4] to 2, 01010010 -> 0x52
+	MOSS_TEST_ASSERT_RETURN(MOSS_BITVAL(0x5a, 0x3 << 3, 2 << 3) == 0x52,
 			test_case, failed_suite);
-	MOSS_TEST_ASSERT_RETURN(MOSS_BITWORD(0x5a, 3, 2, 0x2) == 0x52,
-			test_case, failed_suite);
+
 	return moss_test_flag_result_pass;
 }
 

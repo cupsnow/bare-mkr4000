@@ -5,7 +5,9 @@
 
 void USART_setup(MKR4000_SERCOM_T *sercom, MKR4000_USART_PAD_T pad,
 		uint16_t baud) {
+
 	while(sercom->usart.SYNCBUSY & (1 << MKR4000_USART_SYNCBUSY_ENABLE_SHIFT));
+
 	sercom->usart.CTRLA &= ~(1 << MKR4000_USART_CTRLA_ENABLE_SHIFT);
 	if (baud == 0) return;
 
@@ -13,8 +15,8 @@ void USART_setup(MKR4000_SERCOM_T *sercom, MKR4000_USART_PAD_T pad,
 	sercom->usart.CTRLA |= (1 << MKR4000_USART_CTRLA_SWRST_SHIFT);
 
 	while ((sercom->usart.CTRLA & (1 << MKR4000_USART_CTRLA_SWRST_SHIFT)) ||
-			(sercom->usart.SYNCBUSY & ((1 << MKR4000_USART_SYNCBUSY_SWRST_SHIFT) |
-					(1 << MKR4000_USART_SYNCBUSY_ENABLE_SHIFT)))) {
+			(sercom->usart.SYNCBUSY & (1 << MKR4000_USART_SYNCBUSY_SWRST_SHIFT)) ||
+			(sercom->usart.SYNCBUSY & (1 << MKR4000_USART_SYNCBUSY_ENABLE_SHIFT))) {
 		;
 	}
 	sercom->usart.CTRLA = pad | (1 << MKR4000_USART_CTRLA_MODE_SHIFT) |

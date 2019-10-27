@@ -606,17 +606,11 @@ long moss_showhex_sout(moss_buf_t *buf, const void *msg, unsigned long len);
 
 int moss_cli_tok(char *cli, int *tok_argc, char **tok_argv, const char *sep);
 
-/**
- * get mask of the bit[3..4]: MOSS_BITMASK(3, 2) -> 0x18
- */
-#define MOSS_BITMASK(_shift, _bits) (((1 << (_bits)) - 1) << (_shift))
+#define MOSS_BITMASK(_name) ((1 << _name ## _BITS) << _name ## _SHIFT)
 
-/**
- * set 0x2 into bit[3..4] of 0x5a: MOSS_BITWORD(0x5a, 3, 2, 0x2) -> 0x52
- */
-#define MOSS_BITWORD(_word, _shift, _bits, _field) \
-	(((_word) & ~MOSS_BITMASK(_shift, _bits)) | \
-	(((_field) & MOSS_BITMASK(0, _bits)) << (_shift)))
+/** Set masked bits. */
+#define MOSS_BITVAL(_word, _mask, _val) \
+	(((_word) & ~(_mask)) | ((_val) & (_mask)))
 
 /** Parse cli to \"<addr7> [w [bytes...]] [r [size]]\".
  *

@@ -33,12 +33,28 @@ typedef struct {
 /** Port B instance. */
 #define MKR4000_PORTB ((MKR4000_PORT_T*)(MKR4000_PORT_BASE + 0x80lu))
 
+#define MKR4000_PORT_WRCONFIG_PINMASK_SHIFT 0
+#define MKR4000_PORT_WRCONFIG_PINMASK_BITS 16
+
+#define MKR4000_PORT_WRCONFIG_PMUXEN_SHIFT 16
+#define MKR4000_PORT_WRCONFIG_INEN_SHIFT 17
+#define MKR4000_PORT_WRCONFIG_PULLEN_SHIFT 18
+
+#define MKR4000_PORT_WRCONFIG_PMUX_SHIFT 24
+#define MKR4000_PORT_WRCONFIG_PMUX_BITS 4
+
+#define MKR4000_PORT_WRCONFIG_WRPMUX_SHIFT 28
+#define MKR4000_PORT_WRCONFIG_WRPINCFG_SHIFT 30
+#define MKR4000_PORT_WRCONFIG_HWSEL_SHIFT 31
+
 #define MKR4000_PORT_PMUX_PMUXE_SHIFT 0
 #define MKR4000_PORT_PMUX_PMUXO_SHIFT 4
 #define MKR4000_PORT_PMUX_PMUX_BITS 4
 
 #define MKR4000_PORT_PINCFG_PMUXEN_SHIFT 0
 #define MKR4000_PORT_PINCFG_INEN_SHIFT 1
+#define MKR4000_PORT_PINCFG_PULLEN_SHIFT 2
+#define MKR4000_PORT_PINCFG_DRVSTR_SHIFT 6
 
 /** @} MKR4000_CMSIS_PORT */
 
@@ -63,6 +79,9 @@ typedef struct {
 extern "C" {
 #endif
 
+#define PORT_func(_v) ((_v) >= 'a' ? (_v) - 'a' : \
+		(_v) >= 'A' ? (_v) - 'A' : \
+		(_v) >= '0' ? (_v) - '0' : (_v))
 void PORT_setup(MKR4000_PORT_T *port, char pin, char func, char dir_out);
 
 #ifdef __cplusplus

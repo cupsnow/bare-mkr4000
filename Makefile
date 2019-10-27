@@ -109,7 +109,7 @@ $(eval $(call BUILD2,test1-host,host,$(patsubst $(PWD)/%,%, \
 #
 bootloader_APP=$(patsubst $(PWD)/%,%,$(BUILDDIR)/mkr4000/bootloader)
 bootloader_CPPFLAGS+=$(mkr4000_ARDUINO_CPPFLAGS)
-bootloader_CFLAGS+=$(mkr4000_CFLAGS) -g
+bootloader_CFLAGS+=$(mkr4000_CFLAGS)
 bootloader_LDFLAGS+=$(mkr4000_ARDUINO_LDFLAGS) -Wl,-Map=$@.map
 
 $(eval $(call BUILD2,bootloader,mkr4000,$(patsubst $(PWD)/%,%, \
