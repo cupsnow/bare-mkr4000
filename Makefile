@@ -9,7 +9,7 @@ mkr4000_ARDUINO_PATH?=$(ARDUINO_PLATFORM_PATH)/hardware/samd_beta/1.6.25
 CMSIS_PATH?=$(PROJDIR)/CMSIS_5
 
 BOSSA_PATH?=$(PROJDIR)/bossa
-BOSSAC?=$(BOSSA_PATH)/bin/bossac --offset=0x2000 --verify --info \
+BOSSAC?=$(BOSSA_PATH)/bin/bossac --info --debug --offset=0x2000 --verify \
   --port=$(notdir $(wildcard /dev/ttyACM0 /dev/ttyACM1))
 
 ARM_TOOLCHAIN_PATH?=$(PROJDIR)/gcc-arm-none-eabi
@@ -27,7 +27,8 @@ $(info Makefile ... CROSS_COMPILE: $(CROSS_COMPILE), PATH: $(PATH))
 
 # newlib-nano, retarget
 mkr4000_CPPFLAGS+=-ffunction-sections -fdata-sections -mthumb -mcpu=cortex-m0plus \
-  -Os -flto -D__SAMD21G18A__ -specs=nano.specs -specs=nosys.specs
+  -flto -D__SAMD21G18A__ -specs=nano.specs -specs=nosys.specs -Os
+#mkr4000_CPPFLAGS+=-u _printf_float 
 mkr4000_CFLAGS+=-std=gnu99 -fno-builtin
 mkr4000_LDFLAGS+=-Wl,--cref,--gc-sections
 
@@ -57,7 +58,7 @@ $(eval $(call BUILD2,test3,mkr4000,$(patsubst $(PWD)/%,%, \
     $(addprefix $(PROJDIR)/test/,test3.cpp)))))
 
 test3_prog:
-	$(BOSSAC) --erase --write --reset $(test3_APP).bin
+	$(BOSSAC) --erase --write --reset --boot=1 $(test3_APP).bin
 
 test3:
 	$(SIZE) --format=sysv -x $(test3_APP)
@@ -68,12 +69,13 @@ test3:
 #
 test2_APP=$(patsubst $(PWD)/%,%,$(BUILDDIR)/mkr4000/test2)
 test2_CPPFLAGS+=$(mkr4000_ARDUINO_CPPFLAGS) \
-  -I$(PROJDIR)/moss/inc -I$(PROJDIR)/moss/openbsd
+  -I$(PROJDIR)/moss/mkr/include -I$(PROJDIR)/moss/include \
+  -I$(PROJDIR)/moss/openbsd
 test2_CFLAGS+=$(mkr4000_CFLAGS)
 test2_LDFLAGS+=$(mkr4000_ARDUINO_LDFLAGS) -Wl,-Map=$@.map 
 
 $(eval $(call BUILD2,test2,mkr4000,$(patsubst $(PWD)/%,%, \
-  $(PROJDIR)/moss/moss.c $(PROJDIR)/moss/moss_m0.c \
+  $(PROJDIR)/moss/moss.c $(PROJDIR)/moss/mkr/sys.c \
   $(PROJDIR)/test/test2.cpp $(PROJDIR)/test/test2_startup.S \
   $(mkr4000_ARDUINO_PATH)/variants/mkrvidor4000/linker_scripts/gcc/flash_with_bootloader.ld)))
 
@@ -88,12 +90,12 @@ test2:
 #------------------------------------
 #
 test1-mkr4000_APP=$(patsubst $(PWD)/%,%,$(BUILDDIR)/mkr4000/test1)
-test1-mkr4000_CPPFLAGS+=-I$(PROJDIR)/moss/inc -I$(PROJDIR)/moss/openbsd \
-  $(mkr4000_CPPFLAGS) -g
+test1-mkr4000_CPPFLAGS+=-I$(PROJDIR)/moss/mkr/include -I$(PROJDIR)/moss/include \
+  -I$(PROJDIR)/moss/openbsd $(mkr4000_CPPFLAGS) -g
 test1-mkr4000_CFLAGS+=$(mkr4000_CFLAGS)
 test1-mkr4000_LDFLAGS+=$(mkr4000_LDFLAGS) -Wl,-Map=$@.map
 $(eval $(call BUILD2,test1-mkr4000,mkr4000,$(patsubst $(PWD)/%,%, \
-  $(PROJDIR)/moss/moss.c $(PROJDIR)/moss/moss_m0.c \
+  $(PROJDIR)/moss/moss.c $(PROJDIR)/moss/mkr/sys.c \
   $(PROJDIR)/test/test1.cpp)))
 
 test1-host_APP=$(patsubst $(PWD)/%,%,$(BUILDDIR)/host/test1)

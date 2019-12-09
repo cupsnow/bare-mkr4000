@@ -66,7 +66,10 @@
 #define BOARD_USART1_PORT_FUNC PORT_func('D')
 #define BOARD_USART1_SERCOM MKR4000_SERCOM5
 #define BOARD_USART1_PAD MKR4000_USART_PAD_R3T2X3
-#define BOARD_USART1_BAUD(_bps) (65536 * (1 - 16 * (_bps) / 48000000ul))
+
+extern unsigned long SystemCoreClock;
+
+#define USART_BAUD(_rate) (8 * 65536 - 8 * 65536 * (_rate) * 16 / SystemCoreClock)
 
 /** @} TEST3_BOARD */
 

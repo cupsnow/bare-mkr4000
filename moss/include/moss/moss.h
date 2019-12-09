@@ -606,7 +606,7 @@ long moss_showhex_sout(moss_buf_t *buf, const void *msg, unsigned long len);
 
 int moss_cli_tok(char *cli, int *tok_argc, char **tok_argv, const char *sep);
 
-#define MOSS_BITMASK(_name) ((1 << _name ## _BITS) << _name ## _SHIFT)
+#define MOSS_BITMASK(_name) (((1 << _name ## _BITS) - 1) << _name ## _SHIFT)
 
 /** Set masked bits. */
 #define MOSS_BITVAL(_word, _mask, _val) \
